@@ -1,14 +1,14 @@
 from argparse import ArgumentParser
 
-import setup
+from modules import preprocessing
 
 
 def main():
     ## Prepare data
+    preprocessing.prep_data()
     ## Create Model
     ## Train Model
     ## Test Model
-    pass
 
 
 def parse_args():
