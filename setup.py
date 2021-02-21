@@ -1,11 +1,12 @@
 from pathlib import Path
 
+# paths setup:
 BASE_DIR = Path(__file__).absolute().resolve().parent
-
 DATA_DIR = BASE_DIR.joinpath('data')
+
+# modules/preprocessing.py load_data setup:
 LINES = DATA_DIR.joinpath('lines.txt')
 CONVERSATIONS = DATA_DIR.joinpath('conversations.txt')
-
 ENCODING = 'ISO-8859-1'
 HEADER = None
 SEPARATOR = r' \+{3}\$\+{3} '
