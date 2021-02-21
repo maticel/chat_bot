@@ -11,6 +11,7 @@ def prep_data():
     lines = clean_lines(lines)
     # Clean conversations
     conversations = clean_conversations(conversations)
+    
 
 
 def load_data():
@@ -22,12 +23,16 @@ def load_data():
 def clean_lines(lines):
     # Drop useless columns
     lines = lines.drop([1, 2, 3], axis=1)
+    # Rename headers
+    lines.columns = ['id_line', 'line']
     # Tokenize sentences
-    lines.iloc[:, 1] = lines.iloc[:, 1].apply(lambda line: tokenize(line))
+    lines.line = lines.line.apply(lambda line: tokenize(line))
     return lines
 
 
 def tokenize(line):
+    # Tokenization could be more specific
+    line = str(line).split()
     return line
 
 
@@ -35,6 +40,8 @@ def clean_conversations(conversations):
     from setup import PATTERN
     # Drop useless columns
     conversations = conversations.drop([0, 1, 2], axis=1)
+    # Rename headers
+    conversations.columns = ['conversation']
     # Cast string to list of IDs - Can it be done better?
-    conversations.iloc[:, 0] = conversations.iloc[:, 0].apply(lambda x: re.findall(PATTERN, str(x)))
+    conversations.conversation = conversations.conversation.apply(lambda x: re.findall(PATTERN, str(x)))
     return conversations
