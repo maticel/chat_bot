@@ -1,1 +1,1 @@
-from .preprocessing import prep_data
+from .preprocessing import prep_data, load_data
