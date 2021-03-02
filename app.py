@@ -1,15 +1,19 @@
+import multiprocessing as mp
 from argparse import ArgumentParser
-
 from modules import preprocessing
+
+from setup import ENC_DEC
 
 
 def main(prep_data):
-    ## Prepare data
+    # Prepare data
     if prep_data:
-        preprocessing.prep_data()
-    ## Create Model
-    ## Train Model
-    ## Test Model
+        enc_dec_data = preprocessing.prep_data()
+    else:
+        enc_dec_data = preprocessing.load_data(ENC_DEC, sep=',', header=0)
+    # Create Model
+    # Train Model
+    # Test Model
 
 
 def parse_args():
@@ -19,5 +23,6 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    mp.set_start_method('spawn')
     args = parse_args()
     main(prep_data=args.prep_data)

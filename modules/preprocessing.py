@@ -1,28 +1,41 @@
 import re
+import multiprocessing as mp
 import pandas as pd
+import time
 
-from setup import LINES, CONVERSATIONS, ENCODING, SEPARATOR, ENC_DEC_IDS
+from setup import LINES, CONVERSATIONS, ENCODING, SEPARATOR, ENC_DEC_IDS, ENC_DEC
 
+
+# TODO: Whole process of data preprocessing could be optimized
 
 def prep_data():
     # Load data
     lines = load_data(LINES)
     conversations = load_data(CONVERSATIONS)
-    # Clean lines
+    # Clean data
+    print('[{}]Cleaning data...'.format(time.strftime('%H:%M:%S')))
     lines = clean_lines(lines)
-    # Clean conversations
     conversations = clean_conversations(conversations)
-    # Encode/Decode data
-    print('Creating encodes and decodes ...')
-    enc_dec_data = generate_enc_dec_data(lines, conversations)
-    print('Saving created data set to {} ...'.format(ENC_DEC_IDS))
-    enc_dec_data.to_csv(ENC_DEC_IDS)
-    print('Translating {} ...'.format(ENC_DEC_IDS))
+    # Encode|Decode data
+    print('[{}]Generating encode|decode data frame...'.format(time.strftime('%H:%M:%S')))
+    enc_dec_data_ids = multi_process(conversations, generate_enc_dec_data_ids, ())
+    save_data(enc_dec_data_ids, ENC_DEC_IDS)
+    # Translate ids
+    print('[{}]Translating ids of encode|decode data frame to corresponding lines...'.format(time.strftime('%H:%M:%S')))
+    enc_dec_data = multi_process(enc_dec_data_ids, translate_ids, (lines,))
+    save_data(enc_dec_data, ENC_DEC)
+    return enc_dec_data
 
 
-def load_data(file, header=None):
-    data = pd.read_csv(file, engine='python', encoding=ENCODING, header=header, sep=SEPARATOR)
+def load_data(path, sep=SEPARATOR, header=None):
+    print('[{}]Loading file:{}'.format(time.strftime('%H:%M:%S'), path))
+    data = pd.read_csv(path, engine='python', encoding=ENCODING, header=header, sep=sep)
     return data
+
+
+def save_data(df, path):
+    print('[{}]Saving to:{}'.format(time.strftime('%H:%M:%S'), path))
+    df.to_csv(path, encoding=ENCODING, sep=',', header=True, index=None)
 
 
 def clean_lines(lines):
@@ -36,7 +49,6 @@ def clean_lines(lines):
 
 
 def tokenize(line):
-    # TODO: Tokenization could be more specific
     line = str(line).split()
     return line
 
@@ -52,19 +64,43 @@ def clean_conversations(conversations):
     return conversations
 
 
-def generate_enc_dec_data(lines, conversations):
+def multi_process(df, target, args_tuple):
+    slice_size = int(df.shape[0] / mp.cpu_count())
+
+    manager = mp.Manager()
+    return_list = manager.list()
+
+    processes = []
+    for i in range(mp.cpu_count()):
+        x = i * slice_size
+        y = (i + 1) * slice_size
+        slice_df = df.iloc[x:y, :]
+        args = (slice_df,) + args_tuple + (return_list,)
+        process = mp.Process(target=target, args=args)
+        processes.append(process)
+        process.start()
+
+    for process in processes:
+        process.join()
+
+    return_df = pd.concat(return_list, ignore_index=True)
+    return return_df
+
+
+def generate_enc_dec_data_ids(conversations, return_list):
     # Generates data frame of encode|decode lines ids
-    # TODO: add multiprocessing
-    data = pd.DataFrame(columns=['enc', 'dec'])
+    enc_dec_data_ids = pd.DataFrame(columns=['enc', 'dec'])
     for conversation in conversations.conversation:
         for i in range(len(conversation) - 1):
             enc = conversation[i]
             dec = conversation[i + 1]
             new_row = {'enc': enc, 'dec': dec}
-            data = data.append(new_row, ignore_index=True)
-    return data
+            enc_dec_data_ids = enc_dec_data_ids.append(new_row, ignore_index=True)
+    return_list.append(enc_dec_data_ids)
 
 
-def translate_ids(enc_dec_data):
-    # Translates ids to tokenized lines
-    pass
+def translate_ids(enc_dec_data_ids, lines, return_list):
+    # Translates encode|decode ids of lines to tokenized lines
+    enc_dec_data_ids.enc = enc_dec_data_ids.enc.apply(lambda x: lines.loc[lines['id_line'] == x].iloc[0, 1])
+    enc_dec_data_ids.dec = enc_dec_data_ids.dec.apply(lambda x: lines.loc[lines['id_line'] == x].iloc[0, 1])
+    return_list.append(enc_dec_data_ids)
